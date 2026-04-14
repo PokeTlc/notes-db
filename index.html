@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>notes_db</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <style>
+        body {
+            margin: 0;
+            font-family: "Segoe UI", sans-serif;
+            background: #eef1f5;
+
+            display: flex;
+            justify-content: center;
+            align-items: center;
+
+            min-height: 100vh; /* better than height */
+            overflow: hidden;
+        }
+
+        #app {
+            width: 90%;
+            max-width: 420px;
+
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        #header {
+            padding: 15px 20px;
+            font-size: 18px;
+            font-weight: 600;
+            border-bottom: 1px solid #eee;
+            background: #fafafa;
+            text-align: center;
+        }
+
+        #screen {
+            padding: 15px;
+        }
+
+        .note {
+            background: #ffffff;
+            padding: 12px;
+            margin-bottom: 10px;
+            border-radius: 6px;
+            border: 1px solid #e5e5e5;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        .note:hover {
+            background: #f7f7f7;
+        }
+
+        #loading {
+            display: none;
+            position: fixed;
+            width: 100vw;
+            height: 100vh;
+            background: white;
+            justify-content: center;
+            align-items: center;
+            font-size: 18px;
+            flex-direction: column;
+        }
+
+        #scare {
+            display: none;
+            position: fixed;
+            inset: 0; /* 🔥 covers entire screen */
+            background: black;
+            overflow: hidden;
+        }
+
+        #scare img {
+            position: absolute;
+            width: 100vw;
+            height: 100dvh;
+            object-fit: contain; /* 🔥 FIX */
+            top: 0;
+            left: 0;
+            background: black;
+            animation: snap 0.12s steps(2) forwards, creep 1.2s linear forwards;
+        }
+
+        /* 🔥 CHAOTIC TEXT */
+        .creepyText {
+            position: absolute;
+            color: red;
+            font-family: "Courier New", monospace;
+            opacity: 0;
+            pointer-events: none;
+            animation: flicker 0.15s infinite;
+            line-height: 0.85;
+            letter-spacing: -0.5px;
+            white-space: nowrap; 
+        }
+
+        @keyframes flicker {
+            0% { opacity: 1; }
+            50% { opacity: 0.2; }
+            100% { opacity: 1; }
+        }
+
+        @keyframes snap {
+            0% { opacity: 0.2; filter: brightness(40%); }
+            100% { opacity: 1; filter: brightness(100%); }
+        }
+
+        @keyframes creep {
+            from { transform: scale(1); }
+            to { transform: scale(1.08); }
+        }
+    </style>
+</head>
+<body>
+
+<div id="app">
+    <div id="header">notes_db (personal)</div>
+
+    <div id="screen">
+        <div class="note" onclick="openNote()">dbms_notes</div>
+        <div class="note" onclick="openNote()">dip_notes</div>
+        <div class="note" onclick="openNote()">ai_notes</div>
+        <div class="note" onclick="openNote()">maths_notes</div>
+        <div class="note" onclick="openNote()">daa_notes</div>
+    </div>
+</div>
+
+<div id="loading">
+    <div id="loadingText">Opening file...</div>
+</div>
+
+<div id="scare">
+    <img src="scary.jpg">
+    <audio id="sound" src="umangscreamer.mp3" preload="auto"></audio>
+</div>
+
+<script>
+    const app = document.getElementById("app");
+    const loading = document.getElementById("loading");
+    const loadingText = document.getElementById("loadingText");
+    const scare = document.getElementById("scare");
+    const sound = document.getElementById("sound");
+
+    const steps = [
+        "Opening file...",
+        "Fetching content...",
+        "Rendering preview...",
+        "Almost ready..."
+    ];
+
+    const creepyTexts = [
+            `Ḩ̴̢̡̨̡̢̨̣͈̗̠̰̻̤͔͚̺̙͎̜̰͍̳̹͉̦͖͇͖̜̪̲͕̥̣̩̠͙̙̪͎̝̗̰͍̱̫̖͓͚̥̣̩͚͉͙͙͕̠̠͇̝̟̬͇̲̬̪̭̙́̔̾̂̉͌͊͑̇͊̎͗̄̌̀̒͋́̓̑̑̕͘͜͝͝Ẻ̸̢̧̨̧̘̫̣̲̳͍͎͍̤̩̬͈̼̭̟̥͓̖͙͇͎̭̠̘̮̦̹̣͚̤̼̲͓̙̭̲̘̘̥͕̤̖͓͖͙̰̺̦̮̖̠̻̞͉̞̭̒͋̆̿ͅͅͅĻ̶̧̧̡̡͔̻̼̦̥͎̖͇̹͙̳̯̥̥͓̞͍͙̮̠̙͔̘̤̰͓̗̳́̀̎̉͒̈́̒̓̓͐̓́̍̏̔̇̊̏̇̈̍͛̆̎̆̾̉̈́͒̓͐̀̄͐͛͜ͅĻ̸̨̡̜̦̯̘͙̥͓̥̺͕̳̞̫͙̻̹̼̣̥̪̼͕̩̘̞̟̞̰̻̺̘̮͔͚̦͌̇̆̅́̂͆͋͛͗̇͂̕͜ͅ`,
+            `I̶̲̠̞̼͍̲̮̱̥͎̰̱͙̦̠̅͐̀̓͋̄̽̓͆͒̋̾̅̓̆͘͜͠ͅ ̵̢̬̥̯͉̟̗̜͋̈́͛̈̅͆̈͒̄͆́̓̕͜K̶̯͍̠͗̒͑̆Ṋ̴̡̧̡̜͉̯̗̳͚̼̲̻̖͊̌̈̉̉͘Ờ̸̘̭͔͇͊̌̊̇͐̚͜͝Ẃ̵͈͊͗ ̶͇̃͛̌̆̾̅̾̐͌̅̓͒̌̕͠͝͠Y̷̨͉̹̘̝͍̲͖̲͙̤̜̳̰̤̙͑͋̐̎̀̑͛͛͂̾̕͠͝Ỏ̵̧̨̗̪̣͚͕͔̩̳̘̳̈͊Ư̸͚̩͒̽̆͗̈́̀͂̒̌͘͝`,
+            `Ţ̷̧̢̪̳̩̭̱̜̤̭̝̬̹̘͖̼̉͑̒͒͐͆͒͘Ḥ̵̱͇̼̞̭̮̣̰̜̖͕̊Ȩ̴̞̿̐̈́̅̄͆̊̕R̷͚͈̦̞͚͇̼̼̠̖̍͌̊́̅̅̄̒̋́̂̅͘̚͝ͅͅḜ̷̝̱̹̝̙͎̿͊̉̈́̏̀ ̷̨̧̳̰͈̦̙̹͕͓̫̈́̉͛̄̀̔͗͌͜͝ͅÍ̶̜͍͚͇͇̦̘͈̜͆͠Ş̵̗̱̻͈̻̻͌͋̽͗̓̇͘͠ͅ ̸̛̗̩̰̟͖̖͌̈́͗͆̓̆̂̑̇̀̑̈́̾̕͠N̶̡̡͉̩͙͍̣̫͎͔̠̳͑́̆̋̈͐Ó̴̧̢̧̡̰̙͈̦̼̞̼̹̰͎̯̭̠͘̚`,
+            `Y̷O̴U̶ ̸C̷A̴N̵'̷T̶ ̵R̴U̵N̷`,
+            `I̷ ̴S̴E̷E̶ ̴Y̶O̴U̶`,
+            `S̸T̶I̷L̸L̶ ̴H̵E̷R̶E̵`,
+            `I̷T̴'̶S̸ ̵T̴O̴O̸ ̶L̷A̸T̴E̶`
+        ];
+    function spawnTexts() {
+        setInterval(() => {
+            let text = creepyTexts[Math.floor(Math.random() * creepyTexts.length)];
+
+            let div = document.createElement("div");
+            div.className = "creepyText";
+            div.innerText = text;
+
+            // random position
+            div.style.top = Math.random() * 100 + "vh";
+            div.style.left = Math.random() * 100 + "vw";
+
+            // random size EXTREME
+            let base = window.innerWidth / 50; // responsive
+            div.style.fontSize = Math.max(16, Math.min(base, 30)) + "px";
+            
+            let scale = 0.7 + Math.random() * 0.6; // 0.7 → 1.3
+
+            // rotation
+            div.style.transform = `
+                rotate(${Math.random()*360}deg)
+                scale(${scale})
+            `;
+
+            // random opacity flicker variation
+            div.style.opacity = Math.random();
+
+            // random width wrapping
+            div.style.maxWidth = "40vw";
+
+            document.body.appendChild(div);
+
+            setTimeout(() => {
+                div.remove();
+            }, 300 + Math.random() * 1200);
+
+        }, 80); // faster spawn = more chaos
+    }
+
+    function openNote() {
+        app.style.display = "none";
+        loading.style.display = "flex";
+
+        let i = 0;
+        let interval = setInterval(() => {
+            loadingText.innerText = steps[i];
+            i++;
+
+            if (i >= steps.length) {
+                clearInterval(interval);
+                setTimeout(triggerScare, 600 + Math.random()*600);
+            }
+        }, 400);
+        sound.load();
+    }
+
+    function triggerScare() {
+    loading.style.display = "none";
+    scare.style.display = "flex";
+
+    requestAnimationFrame(() => {
+        sound.currentTime = 0;
+        sound.play().catch(()=>{});
+    });
+
+    spawnTexts();
+    }
+</script>
+
+</body>
+</html>
